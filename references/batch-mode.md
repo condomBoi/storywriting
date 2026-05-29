@@ -52,9 +52,10 @@ output/{batch-id}/
   "items": [
     {
       "id": "C041",
-      "title": "Humiliation phrase → Reveal phrase",
+      "title": "Setup phrase → Payoff phrase",
       "conceptSource": "Concept 03 #7",
-      "openingStyle": "Silent witness",
+      "engine": "E08",
+      "openingStyle": "Object Clue",
       "characterBible": "CHARACTER LOCK — do not change...",
       "photoPrompt": null,
       "caption": null,
@@ -74,6 +75,44 @@ output/{batch-id}/
 - Create JSON skeleton in Phase 0 with `characterBible`, beats, and metadata filled
 - Each later phase **updates only its fields** — never rewrite completed items unless user asks
 - Set `status.*` to `true` when that field is done
+
+---
+
+## Mixed-bank batches (concepts3 + concepts4)
+
+Mixing banks is safe **only if every item is tagged with its engine** — otherwise the agent
+drifts and writes everything as humiliation→reveal. Use **controlled random**, not pure random.
+
+**Engine tagging**
+- concepts1 / concepts2 / concepts3 item → `engine: "E00"` (Humiliation → Reveal)
+- concepts4 item → its own `E01`–`E22` (the group it came from)
+
+**Controlled-random rules for a 10-item batch**
+1. **≤ 6 distinct engines** in the batch (4–6 is the sweet spot).
+2. **No 3 consecutive items** with the same engine (ideally alternate).
+3. **Tone balance:** at most **3** "heavy/sad" items (engines E04, E06, E12, E20). Include at
+   least 2 different moods (punchy / warm / sad).
+4. Don't let one engine exceed ~3 items unless the user asks.
+
+**Phase 0 MUST print an engine map** before writing anything, so balance is visible:
+
+```
+| ID  | Source            | Engine                  | Opening style      | Tone        |
+|-----|-------------------|-------------------------|--------------------|-------------|
+| 01  | concepts3 #142    | E00 Humiliation→Reveal  | Dialogue Slap      | satisfying  |
+| 02  | concepts4 E02 #7  | E02 Mystery             | Curious Ritual     | warm/bitter |
+| 03  | concepts4 E21 #3  | E21 Found Family        | Tender Oddity      | belonging   |
+| 04  | concepts4 E06 #11 | E06 Bittersweet         | Tender Oddity      | grief+love  |
+| ... | ...               | ...                     | ...                | ...         |
+```
+
+**Helper:** `node scripts/pick-batch.js 10 --batch batch-09` auto-selects a balanced set from
+concepts3 + concepts4, enforces the rules above, and prints the engine map **and** a JSON
+skeleton (with `engine` filled per item) ready for Phase 0. See `references/story-engines.md`
+for each engine's photo scroll-stop, opening style, and ending tone.
+
+> In every later phase, read the per-item engine card in `story-engines.md`. Phase 3 stays at
+> **2 stories/session** — pairing items of the same/similar engine reduces structure-switching.
 
 ---
 
@@ -142,17 +181,19 @@ Dùng skill storywriting — Phase 0 ONLY.
 
 Batch: {BATCH_ID} | Items: {IDS} | Source: {CONCEPT_SOURCE}
 
-Đọc concept bank tương ứng (concepts1 hoặc concepts2).
+Đọc concept bank tương ứng (concepts1 / concepts2 / concepts3 / concepts4).
+Nếu dùng concepts4 hoặc gán engine: đọc thêm references/story-engines.md.
 
 Tạo STORY PLAN — KHÔNG viết photo prompt, caption, full story, txt.
 
 Mỗi item gồm:
-- id | title (humiliation → reveal)
+- id | title (`[setup] → [payoff]` theo engine của item)
 - conceptSource
-- 4-beat arc (Setup / Clue / Turn / Payoff) — 1–2 câu/beat
-- Character Lock đầy đủ (protagonist, antagonist, setting US, object clue)
-- Peak-tension moment cho photo (Beat 1–2, không spoil twist)
-- openingStyle (1 trong 10 styles, không trùng liên tiếp)
+- engine (E01–E22 từ story-engines.md) — rotate trong batch, tránh 3+ item liên tiếp cùng engine
+- 4-beat arc (Hook / Build / Turn / Payoff) — 1–2 câu/beat, map theo engine
+- Character Lock đầy đủ (nhân vật, setting US, object clue)
+- Peak-tension moment cho photo (Beat 1–2 = scroll-stop của engine, không spoil payoff)
+- openingStyle (theo style engine gợi ý, không trùng liên tiếp)
 
 Output:
 1. output/{BATCH_ID}/{BATCH_ID}-plan.md
@@ -176,7 +217,7 @@ Dùng skill storywriting — Phase 1A ONLY.
 Viết PHOTO PROMPT cho {IDS} (nửa đầu batch).
 - Mở đầu: 4:5 vertical + smartphone snapshot aesthetic
 - Character Lock khớp plan/JSON
-- Peak tension Beat 1–2, twist KHÔNG được vẽ
+- Scroll-stop = "Photo" line của engine item đó (xem story-engines.md); Beat 1–2, KHÔNG vẽ payoff
 - Không readable text in scene
 
 Cập nhật {BATCH_ID}.json — chỉ photoPrompt + status.photo=true cho items này.
@@ -194,14 +235,15 @@ DỪNG sau Phase 1A. KHÔNG commit/PR (chờ Phase 4).
 Dùng skill storywriting — Phase 2A ONLY.
 
 Đọc references/caption-methodology.md
+Đọc references/story-engines.md (opening style + tone theo engine)
 Đọc output/{BATCH_ID}/{BATCH_ID}.json (items có photoPrompt)
 
 Viết CAPTION cho {IDS} (nửa đầu).
 - 1000–1200 ký tự mỗi caption (đếm ký tự) — nếu lố thì GIỮ NGUYÊN, không trim
 - 3 đoạn + blank line + CTA (MORE / YES / NEXT)
 - Đoạn 2: 1 visual detail từ photo prompt
-- Không spoil twist
-- openingStyle đúng plan
+- Không spoil payoff (giấu đúng "Withhold" của engine)
+- openingStyle theo engine của item
 
 Cập nhật JSON — chỉ caption + status.caption=true.
 In bảng verify: id | char count | opening style | CTA
@@ -218,13 +260,14 @@ DỪNG sau Phase 2A. KHÔNG commit/PR (chờ Phase 4).
 Dùng skill storywriting — Phase 3 ONLY.
 
 Đọc references/full-story-methodology.md
+Đọc references/story-engines.md (payoff + tone theo engine)
 Đọc output/{BATCH_ID}/{BATCH_ID}.json
 
 Viết FULL STORY cho {ID_A} và {ID_B} ONLY.
 - 6000–8000 ký tự mỗi bài (đếm ký tự) — nếu lố thì GIỮ NGUYÊN, không trim
 - Mở đầu khớp caption — reader cảm continuity
-- 4 acts: Hook → Pressure → Turn → Payoff
-- Twist + consequence antagonist + final line cụ thể
+- 4 acts: Hook → Build → Turn → Payoff (map theo engine)
+- Payoff theo engine + final line cụ thể; antagonist consequence CHỈ khi engine có antagonist
 - Character Lock nhất quán
 - Không copy CTA Facebook vào story
 
